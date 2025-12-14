@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 # --- Dane początkowe (zostaną zresetowane przy każdej interakcji) ---
 # Magazyn teraz przechowuje listę słowników z ilością (liczbą sztuk)
@@ -19,6 +20,7 @@ def znajdz_towar_index(lista, nazwa):
 
 def dodaj_lub_zwieksz(lista, nazwa_towaru):
     """Zwiększa ilość towaru lub dodaje go, jeśli nie istnieje. Zwraca NOWY stan listy."""
+    nazwa_towaru = nazwa_towaru.strip()
     if not nazwa_towaru:
         st.error("Wprowadź nazwę towaru.")
         return lista
@@ -63,22 +65,24 @@ def zmniejsz_lub_usun(lista, nazwa_towaru):
 
 def main_app():
     
+    # !!! NAPRAWA BŁĘDU: Deklaracja global musi być na początku !!!
+    global magazyn 
+    
     st.set_page_config(page_title="Prosty System Magazynowy", layout="wide")
     st.title("📦 Prosty System Magazynowy")
-    st.subheader("Aplikacja Streamlit") 
+    st.subheader("Aplikacja Streamlit (dane nietrwałe)") 
 
-    # Użycie globalnej listy zdefiniowanej na początku skryptu
-    global magazyn
+    # Użycie globalnej listy
     aktualny_magazyn = magazyn
     
     st.markdown("---")
     st.header("Aktualny Stan Magazynu")
     
-    # Wyświetlenie listy z ilością
+    # Wyświetlenie listy za pomocą Pandas DataFrame dla lepszej czytelności
     if aktualny_magazyn:
-        # Generowanie formatowania listy: Nazwa towaru: X sztuk
-        warehouse_display = "\n".join([f"* **{item['nazwa']}**: {item['ilosc']} sztuk" for item in aktualny_magazyn])
-        st.markdown(warehouse_display)
+        df = pd.DataFrame(aktualny_magazyn)
+        df.columns = ["Nazwa Towaru", "Liczba Sztuk"]
+        st.dataframe(df, hide_index=True, use_container_width=True)
         
         total_unique_items = len(aktualny_magazyn)
         total_count = sum(item['ilosc'] for item in aktualny_magazyn)
@@ -89,6 +93,9 @@ def main_app():
 
     st.markdown("---")
     
+    # Wytłumaczenie braku trwałości danych
+    st.caption("ℹ️ **Uwaga:** Ze względu na brak użycia 'session_state', każda interakcja powoduje restart aplikacji, co resetuje stan magazynu do początkowych wartości.")
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -96,11 +103,9 @@ def main_app():
         new_item = st.text_input("Nazwa towaru do dodania / zwiększenia ilości:", key="add_input")
         
         if st.button("Dodaj / Zwiększ Ilość", type="primary"):
-            nowy_stan = dodaj_lub_zwieksz(aktualny_magazyn, new_item.strip())
+            nowy_stan = dodaj_lub_zwieksz(aktualny_magazyn, new_item)
             
-            # Nadpisanie globalnej listy i wymuszenie restartu, aby wyświetlić zmianę.
-            # UWAGA: Stan zostanie utracony przy następnej interakcji!
-            global magazyn
+            # Modyfikacja zmiennej globalnej i wymuszenie restartu
             magazyn = nowy_stan
             st.rerun() 
             
@@ -118,12 +123,11 @@ def main_app():
             if st.button("Zmniejsz Ilość / Usuń Towar", type="secondary"):
                 nowy_stan = zmniejsz_lub_usun(aktualny_magazyn, item_to_remove)
                 
-                # Nadpisanie globalnej listy i wymuszenie restartu.
-                global magazyn
+                # Modyfikacja zmiennej globalnej i wymuszenie restartu
                 magazyn = nowy_stan
                 st.rerun()
         else:
-            st.info("Brak towarów w magazynie.")
+            st.info("Brak towarów do usunięcia.")
 
 # --- Uruchomienie Aplikacji ---
 if __name__ == "__main__":
